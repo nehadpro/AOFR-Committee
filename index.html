@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>اللجنة الدائمة لتنفيذ آلية التجديد — برنامج الاستقطاب</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <img class="login-seal" src="ksu-logo.png" alt="شعار جامعة الملك سعود" />
+    <h1>اللجنة الدائمة لتنفيذ آلية التجديد</h1>
+    <div class="login-sub">برنامج الاستقطاب — عرض المعاملات واتخاذ القرارات</div>
+
+    <div class="login-tabs">
+      <button class="login-tab active" data-tab="member">دخول عضو اللجنة</button>
+      <button class="login-tab" data-tab="admin">دخول المسؤول</button>
+    </div>
+
+    <div id="loginError" class="login-error hidden"></div>
+
+    <!-- member login -->
+    <form id="memberLoginForm">
+      <div class="field">
+        <label for="memberSelect">اسمك في اللجنة</label>
+        <select id="memberSelect" required>
+          <option value="" disabled selected>اختر اسمك من القائمة…</option>
+        </select>
+      </div>
+      <div class="field" id="memberPasswordField" style="display:none">
+        <label for="memberPassword">كلمة المرور</label>
+        <input type="password" id="memberPassword" autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">دخول</button>
+    </form>
+
+    <!-- admin login -->
+    <form id="adminLoginForm" class="hidden">
+      <div class="field">
+        <label for="adminUser">اسم المستخدم</label>
+        <input type="text" id="adminUser" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="adminPass">كلمة المرور</label>
+        <input type="password" id="adminPass" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">دخول كمسؤول</button>
+    </form>
+
+    <div class="login-footnote">الدخول مخصص لأعضاء اللجنة والمسؤول عن النظام فقط</div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell" class="app-shell hidden">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <img class="mark" src="ksu-logo.png" alt="شعار جامعة الملك سعود" />
+      <div class="titles">
+        <div class="t1">اللجنة الدائمة لتنفيذ آلية التجديد</div>
+        <div class="t2">برنامج الاستقطاب</div>
+      </div>
+    </div>
+    <div class="topbar-user">
+      <span class="who">مرحبًا، <b id="whoName">—</b></span>
+      <button id="changePasswordTopBtn" class="btn btn-sm hidden">تغيير كلمة المرور</button>
+      <button id="logoutBtn" class="btn btn-sm">تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <div class="body-grid">
+    <!-- sidebar (populated per role by app.js) -->
+    <nav class="sidebar" id="sidebar"></nav>
+
+    <!-- main content (views injected by app.js) -->
+    <main class="main" id="mainView"></main>
+  </div>
+</div>
+
+<!-- print-only report container -->
+<div id="printReport" class="print-only"></div>
+
+<!-- modal root -->
+<div id="modalRoot"></div>
+
+<!-- toast root -->
+<div id="toastRoot"></div>
+
+<script src="firebase-config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
