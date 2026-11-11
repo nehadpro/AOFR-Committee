@@ -991,7 +991,6 @@ function openTopicModal(committee, topic, orderIndex) {
             <input type="text" id="attUrl" dir="ltr" placeholder="https://..." style="flex:2; min-width:220px; text-align:left;" />
             <button type="button" class="btn btn-sm" id="addAttachmentBtn">+ إضافة</button>
           </div>
-          <div class="hint">من OneDrive: افتح الملف ← مشاركة (Share) ← انسخ الرابط، ثم الصقه هنا. تأكد أن صلاحية الرابط "عرض فقط" لأعضاء الجامعة.</div>
         </div>
       </div>`,
     foot: (() => {
