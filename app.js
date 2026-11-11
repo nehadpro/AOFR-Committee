@@ -2,12 +2,27 @@
 // اللجنة الدائمة لتنفيذ آلية التجديد — منطق التطبيق
 // ================================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app-check.js";
 import {
   getFirestore, collection, doc, getDoc, getDocs, updateDoc,
   deleteDoc, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, deleteField
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const fbApp = initializeApp(window.FIREBASE_CONFIG);
+
+// App Check (optional): only activates once APP_CHECK_SITE_KEY is filled in
+// firebase-config.js. Safe to leave disabled — the app works normally either way.
+if (window.APP_CHECK_SITE_KEY) {
+  try {
+    initializeAppCheck(fbApp, {
+      provider: new ReCaptchaV3Provider(window.APP_CHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (e) {
+    console.warn("App Check init failed:", e);
+  }
+}
+
 const db = getFirestore(fbApp);
 
 // ---------------- constants ----------------
@@ -376,6 +391,10 @@ function loadMemberTopics(committee) {
   activeUnsubs.push(memberTopicsUnsub);
 }
 
+function folderButtonHTML(committee) {
+  const url = committee && committee.folderUrl ? normalizeAttachmentUrl(committee.folderUrl) : null;
+  return url ? `<a class="btn btn-sm" href="${esc(url)}" target="_blank" rel="noopener noreferrer">📁 مجلد اللجنة</a>` : "";
+}
 let memberSelectedCategory = null;
 function renderMemberTopics(committee, topics) {
   lastRenderedMemberCommittee = committee;
@@ -401,7 +420,7 @@ function renderMemberTopics(committee, topics) {
           <h2>${esc(committee.number)}</h2>
           <div class="sub">${fmtDate(committee.date)} · <span class="status-chip status-active">مفتوحة للتصويت</span></div>
         </div>
-        <div class="main-actions"><div class="text-sm muted">أنجزت ${decided} من ${topics.length} موضوعًا</div></div>
+        <div class="main-actions">${folderButtonHTML(committee)}<div class="text-sm muted">أنجزت ${decided} من ${topics.length} موضوعًا</div></div>
       </div>
       <div class="card card-pad">
         <div class="text-sm muted" style="margin-bottom:12px;">اختر فئة الموضوعات لعرض قائمة الباحثين ضمنها</div>
@@ -430,7 +449,7 @@ function renderMemberTopics(committee, topics) {
         <h2 style="margin-top:6px;">${esc(committee.number)} — ${esc(memberSelectedCategory)}</h2>
         <div class="sub">${fmtDate(committee.date)} · <span class="status-chip status-active">مفتوحة للتصويت</span></div>
       </div>
-      <div class="main-actions"><div class="text-sm muted">أنجزت ${decided} من ${topics.length} موضوعًا</div></div>
+      <div class="main-actions">${folderButtonHTML(committee)}<div class="text-sm muted">أنجزت ${decided} من ${topics.length} موضوعًا</div></div>
     </div>
     <div style="display:flex; gap:20px; align-items:flex-start;">
       <div style="width:230px; flex-shrink:0;">
@@ -685,7 +704,9 @@ function openCommitteeModal(committee) {
     title: isEdit ? "تعديل بيانات اللجنة" : "إنشاء لجنة جديدة",
     bodyHTML: `
       <div class="field"><label>اسم/رقم اللجنة</label><input type="text" id="cNumber" value="${esc(committee?.number || "")}" placeholder="مثال: اللجنة الدائمة ١٤٤٧/١٢" /></div>
-      <div class="field"><label>تاريخ الاجتماع</label><input type="date" id="cDate" value="${esc(committee?.date || "")}" /></div>`,
+      <div class="field"><label>تاريخ الاجتماع</label><input type="date" id="cDate" value="${esc(committee?.date || "")}" /></div>
+      <div class="field"><label>رابط مجلد اللجنة في OneDrive (اختياري)</label><input type="text" id="cFolderUrl" dir="ltr" style="text-align:left;" placeholder="https://..." value="${esc(committee?.folderUrl || "")}" />
+        <div class="hint">يظهر للأعضاء زر لفتح المجلد مباشرة. اجعل صلاحية الرابط "عرض فقط".</div></div>`,
     foot: (() => {
       const f = document.createDocumentFragment();
       f.append(
@@ -696,11 +717,14 @@ function openCommitteeModal(committee) {
             const number = $("#cNumber").value.trim();
             const date = $("#cDate").value;
             if (!number) return toast("الرجاء إدخال اسم/رقم اللجنة");
+            const rawFolder = $("#cFolderUrl").value.trim();
+            const folderUrl = rawFolder ? normalizeAttachmentUrl(rawFolder) : "";
+            if (rawFolder && !folderUrl) return toast("رابط المجلد غير صحيح، يجب أن يبدأ بـ https://");
             if (isEdit) {
-              await updateDoc(doc(db, "committees", committee.id), { number, date });
+              await updateDoc(doc(db, "committees", committee.id), { number, date, folderUrl });
               toast("تم حفظ التعديلات");
             } else {
-              await addDoc(collection(db, "committees"), { number, date, status: "مفتوحة", createdAt: serverTimestamp() });
+              await addDoc(collection(db, "committees"), { number, date, folderUrl, status: "مفتوحة", createdAt: serverTimestamp() });
               toast("تم إنشاء اللجنة");
             }
             closeModal();
@@ -919,6 +943,7 @@ function confirmDeleteTopic(committee, topic) {
 
 function openTopicModal(committee, topic, orderIndex) {
   const t = topic || {};
+  const pendingLinks = []; // links added while creating a new topic (saved together with it)
   const existingHijri = t.contractEndDate ? gregorianToHijriParts(new Date(t.contractEndDate + "T00:00:00Z")) : null;
   openModal({
     title: topic ? "تعديل الموضوع" : "إضافة موضوع جديد",
@@ -958,15 +983,14 @@ function openTopicModal(committee, topic, orderIndex) {
         <div class="field full"><label>قرار اللجنة السابق حياله</label><input type="text" id="fPrev" value="${esc(t.previousDecision || "")}" /></div>
         <div class="field"><label>العدد الإجمالي للباحثين بنفس الجهة</label><input type="number" min="0" id="fColleagues" value="${t.colleaguesCount ?? ""}" /></div>
         <div class="field full">
-          <label>المرفقات</label>
-          ${topic ? `
-            <div id="attachmentsList"></div>
-            <div class="row" style="margin-top:8px;">
-              <input type="file" id="attachmentInput" multiple style="flex:1;" />
-              <button type="button" class="btn btn-sm" id="uploadAttachmentBtn">رفع</button>
-            </div>
-            <div class="hint">حجم أقصى تقريبي ٧٠٠ كيلوبايت لكل ملف (مناسب لصور أو مستندات قصيرة بصيغة PDF)</div>
-          ` : `<div class="hint">يمكنك إضافة المرفقات بعد حفظ الموضوع، بالضغط على زر "تعديل" أمامه.</div>`}
+          <label>المرفقات (روابط ملفات من OneDrive)</label>
+          <div id="attachmentsList"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <input type="text" id="attName" placeholder="اسم المرفق (مثال: السيرة الذاتية)" style="flex:1; min-width:160px;" />
+            <input type="text" id="attUrl" dir="ltr" placeholder="https://..." style="flex:2; min-width:220px; text-align:left;" />
+            <button type="button" class="btn btn-sm" id="addAttachmentBtn">+ إضافة</button>
+          </div>
+          <div class="hint">من OneDrive: افتح الملف ← مشاركة (Share) ← انسخ الرابط، ثم الصقه هنا. تأكد أن صلاحية الرابط "عرض فقط" لأعضاء الجامعة.</div>
         </div>
       </div>`,
     foot: (() => {
@@ -1001,7 +1025,8 @@ function openTopicModal(committee, topic, orderIndex) {
             if (topic) {
               await updateDoc(doc(db, "committees", committee.id, "topics", topic.id), payload);
             } else {
-              await addDoc(collection(db, "committees", committee.id, "topics"), { ...payload, order: orderIndex, decisions: {}, createdAt: serverTimestamp() });
+              const newRef = await addDoc(collection(db, "committees", committee.id, "topics"), { ...payload, order: orderIndex, decisions: {}, createdAt: serverTimestamp() });
+              for (const l of pendingLinks) await addAttachmentLink(committee.id, newRef.id, l.name, l.url);
             }
             toast("تم الحفظ"); closeModal();
           });
@@ -1046,49 +1071,52 @@ function openTopicModal(committee, topic, orderIndex) {
         gregWrap.classList.add("hidden");
       }
 
-      if (!topic) return;
+      // attachments: links to OneDrive files
       const listBox = $("#attachmentsList");
-      renderAttachmentsList(listBox, committee.id, topic.id, { canEdit: true });
-      $("#uploadAttachmentBtn").addEventListener("click", async () => {
-        const input = $("#attachmentInput");
-        if (!input.files.length) return toast("اختر ملفًا أولًا");
-        await uploadAttachments(committee.id, topic.id, input.files);
-        input.value = "";
-        renderAttachmentsList(listBox, committee.id, topic.id, { canEdit: true });
+      function drawPending() {
+        if (!pendingLinks.length) { listBox.innerHTML = `<div class="text-sm muted">لا توجد مرفقات بعد</div>`; return; }
+        listBox.innerHTML = "";
+        pendingLinks.forEach((l, idx) => {
+          const row = el("div", { class: "row", style: "padding:6px 2px; border-bottom:1px solid var(--border);" });
+          row.innerHTML = `<span class="text-sm" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔗 ${esc(l.name)}</span>`;
+          row.appendChild(el("button", { class: "icon-btn", title: "إزالة", onclick: () => { pendingLinks.splice(idx, 1); drawPending(); } }, "✕"));
+          listBox.appendChild(row);
+        });
+      }
+      if (topic) renderAttachmentsList(listBox, committee.id, topic.id, { canEdit: true });
+      else drawPending();
+
+      $("#addAttachmentBtn").addEventListener("click", async () => {
+        const url = normalizeAttachmentUrl($("#attUrl").value);
+        if (!url) return toast("الرجاء إدخال رابط صحيح يبدأ بـ https://");
+        const name = $("#attName").value.trim() || "مرفق";
+        if (topic) {
+          await addAttachmentLink(committee.id, topic.id, name, url);
+          renderAttachmentsList(listBox, committee.id, topic.id, { canEdit: true });
+        } else {
+          pendingLinks.push({ name, url });
+          drawPending();
+        }
+        $("#attName").value = "";
+        $("#attUrl").value = "";
       });
     },
   });
 }
 
-// ---------- attachments (stored as base64 documents in a sub-collection) ----------
-const MAX_ATTACHMENT_BYTES = 700 * 1024; // keep comfortably under Firestore's 1MiB per-document cap
-
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error || new Error("تعذرت قراءة الملف"));
-    reader.readAsDataURL(file);
-  });
+// ---------- attachments (links to files kept in OneDrive / SharePoint) ----------
+// Files themselves are NOT stored in Firebase: only a name + link. Access to the
+// file is controlled by the sharing settings of the OneDrive link itself.
+function normalizeAttachmentUrl(raw) {
+  const v = (raw || "").trim();
+  if (!/^https:\/\//i.test(v)) return null; // https only (blocks javascript:, data:, http:)
+  try { new URL(v); return v; } catch { return null; }
 }
 
-async function uploadAttachments(committeeId, topicId, fileList) {
-  const files = Array.from(fileList || []);
-  for (const file of files) {
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast(`الملف "${file.name}" أكبر من الحد المسموح (٧٠٠ ك.ب تقريبًا) ولم يُرفع`);
-      continue;
-    }
-    try {
-      const dataUrl = await readFileAsDataURL(file);
-      await addDoc(collection(db, "committees", committeeId, "topics", topicId, "attachments"), {
-        name: file.name, type: file.type || "", size: file.size, dataUrl, uploadedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      toast(`تعذر رفع "${file.name}": ${e.message}`);
-    }
-  }
-  toast("تم تحديث المرفقات");
+async function addAttachmentLink(committeeId, topicId, name, url) {
+  await addDoc(collection(db, "committees", committeeId, "topics", topicId, "attachments"), {
+    name, url, kind: "link", addedAt: new Date().toISOString(),
+  });
 }
 
 async function renderAttachmentsList(container, committeeId, topicId, { canEdit }) {
@@ -1102,18 +1130,25 @@ async function renderAttachmentsList(container, committeeId, topicId, { canEdit 
   snap.forEach((docSnap) => {
     const a = docSnap.data();
     const row = el("div", { class: "row", style: "padding:6px 2px; border-bottom:1px solid var(--border);" });
-    row.innerHTML = `
-      <a href="${a.dataUrl}" download="${esc(a.name)}" class="text-sm" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${esc(a.name)}</a>
-      <span class="text-sm muted">${Math.round((a.size || 0) / 1024)} ك.ب</span>`;
+    if (a.url) {
+      const safe = normalizeAttachmentUrl(a.url);
+      row.innerHTML = safe
+        ? `<a href="${esc(safe)}" target="_blank" rel="noopener noreferrer" class="text-sm" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔗 ${esc(a.name)}</a>`
+        : `<span class="text-sm muted" style="flex:1;">${esc(a.name)} (رابط غير صالح)</span>`;
+    } else {
+      // legacy attachment uploaded directly in an earlier version
+      row.innerHTML = `
+        <a href="${a.dataUrl}" download="${esc(a.name)}" class="text-sm" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${esc(a.name)}</a>
+        <span class="text-sm muted">${Math.round((a.size || 0) / 1024)} ك.ب</span>`;
+    }
     if (canEdit) {
-      const delBtn = el("button", {
+      row.appendChild(el("button", {
         class: "icon-btn", title: "حذف المرفق",
         onclick: async () => {
           await deleteDoc(doc(db, "committees", committeeId, "topics", topicId, "attachments", docSnap.id));
           renderAttachmentsList(container, committeeId, topicId, { canEdit });
         },
-      }, "✕");
-      row.appendChild(delBtn);
+      }, "✕"));
     }
     container.appendChild(row);
   });
