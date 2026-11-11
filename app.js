@@ -28,6 +28,7 @@ const db = getFirestore(fbApp);
 // ---------------- constants ----------------
 const DECISION_OPTIONS = [
   { value: "approve", label: "الموافقة", pill: "pill-approve" },
+  { value: "approve_year_policy", label: "الموافقة لمدة عام على أن يتم تطبيق سياسات الاستقطاب بعد الانتهاء منها واعتمادها", pill: "pill-approve-policy" },
   { value: "reject", label: "عدم الموافقة", pill: "pill-reject" },
   { value: "extend", label: "الموافقة لسنة أخيرة", pill: "pill-extend" },
   { value: "extend_align", label: "الموافقة لسنة أخيرة والمواءمة مع لجنة تخطيط الموارد البشرية", pill: "pill-extend-align" },
@@ -1287,6 +1288,7 @@ function confirmDeleteMember(member) {
 // ---------- statistics / charts ----------
 const DECISION_COLORS = {
   approve: "#2f4b3c",
+  approve_year_policy: "#2a7f86",
   reject: "#8b3a3a",
   extend: "#9c6b1f",
   extend_align: "#a9812f",

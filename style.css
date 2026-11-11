@@ -32,6 +32,9 @@
   --amber: #9c6b1f;
   --amber-tint: #f6ecd9;
 
+  --teal: #1f6b72;
+  --teal-tint: #e0f0f1;
+
   --radius-sm: 3px;
   --radius-md: 6px;
 
@@ -59,6 +62,8 @@
     --danger-tint: #2c1c1a;
     --amber: #d9ac5f;
     --amber-tint: #2c2416;
+    --teal: #6fc0c7;
+    --teal-tint: #17302f;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
@@ -79,6 +84,8 @@
   --danger-tint: #2c1c1a;
   --amber: #d9ac5f;
   --amber-tint: #2c2416;
+  --teal: #6fc0c7;
+  --teal-tint: #17302f;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
@@ -294,6 +301,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 /* ---------- decision pill in results tables ---------- */
 .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .pill-approve { background: var(--brand-tint); color: var(--brand-dark); }
+.pill-approve-policy { background: var(--teal-tint); color: var(--teal); }
 .pill-reject { background: var(--danger-tint); color: var(--danger); }
 .pill-extend { background: var(--amber-tint); color: var(--amber); }
 .pill-extend-align { background: var(--brass-tint); color: var(--brass); }
