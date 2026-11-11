@@ -42,9 +42,14 @@ const optionByValue = (v) => DECISION_OPTIONS.find((o) => o.value === v);
 // support). No external library is needed.
 const HIJRI_MONTHS = ["محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
 
-const TOPIC_CATEGORIES = ["تجديد عقد باحث", "تجديد عقد متعاون", "تجديد عقد وظائف أخرى", "مناقشة قرار سابق", "تعاقد جديد كباحث"];
+const TOPIC_CATEGORIES = [
+  "تجديد عقد باحث", "تجديد عقد متعاون", "تجديد عقد وظائف أخرى",
+  "مناقشة قرار سابق",
+  "تعاقد باحث", "تعاقد عضو هيئة تدريس",
+  "تحسين وضع وظيفي",
+];
 // Topics saved before the rename still carry the old name; read them under the new one.
-const LEGACY_CATEGORY_NAMES = { "تجديد عقد": "تجديد عقد باحث" };
+const LEGACY_CATEGORY_NAMES = { "تجديد عقد": "تجديد عقد باحث", "تعاقد جديد كباحث": "تعاقد باحث" };
 const normalizeCategory = (c) => LEGACY_CATEGORY_NAMES[c] || c || "";
 const QUALIFICATIONS = ["بكالوريوس", "ماجستير", "دكتوراه"];
 
