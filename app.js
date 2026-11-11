@@ -42,7 +42,10 @@ const optionByValue = (v) => DECISION_OPTIONS.find((o) => o.value === v);
 // support). No external library is needed.
 const HIJRI_MONTHS = ["محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
 
-const TOPIC_CATEGORIES = ["تجديد عقد", "مناقشة قرار سابق", "تعاقد جديد كباحث"];
+const TOPIC_CATEGORIES = ["تجديد عقد باحث", "تجديد عقد متعاون", "مناقشة قرار سابق", "تعاقد جديد كباحث"];
+// Topics saved before the rename still carry the old name; read them under the new one.
+const LEGACY_CATEGORY_NAMES = { "تجديد عقد": "تجديد عقد باحث" };
+const normalizeCategory = (c) => LEGACY_CATEGORY_NAMES[c] || c || "";
 const QUALIFICATIONS = ["بكالوريوس", "ماجستير", "دكتوراه"];
 
 function gregorianToHijriParts(dateObj) {
@@ -411,7 +414,7 @@ function renderMemberTopics(committee, topics) {
   if (!memberSelectedCategory) {
     const cats = [...TOPIC_CATEGORIES, "غير مصنّف"];
     const cards = cats.map((c) => {
-      const count = topics.filter((t) => (t.category || "غير مصنّف") === c).length;
+      const count = topics.filter((t) => (normalizeCategory(t.category) || "غير مصنّف") === c).length;
       return { name: c, count };
     }).filter((c) => c.count > 0);
 
@@ -438,7 +441,7 @@ function renderMemberTopics(committee, topics) {
     return;
   }
 
-  const filteredTopics = topics.filter((t) => (t.category || "غير مصنّف") === memberSelectedCategory);
+  const filteredTopics = topics.filter((t) => (normalizeCategory(t.category) || "غير مصنّف") === memberSelectedCategory);
   if (!memberSelectedTopicId || !filteredTopics.find((t) => t.id === memberSelectedTopicId)) {
     memberSelectedTopicId = filteredTopics.find((t) => !(t.decisions && t.decisions[CURRENT.id]))?.id || filteredTopics[0]?.id;
   }
@@ -490,7 +493,7 @@ function renderMemberDossier(committee, topic, indexNum) {
     <div class="dossier-head">
       <div class="file-no">الموضوع رقم ${indexNum} — ${esc(topic.researcherName || "بدون اسم")}</div>
       <div class="row" style="gap:8px;">
-        ${topic.category ? `<span class="badge">${esc(topic.category)}</span>` : ""}
+        ${normalizeCategory(topic.category) ? `<span class="badge">${esc(normalizeCategory(topic.category))}</span>` : ""}
         <span class="badge">الرقم الوظيفي ${esc(topic.fileNumber || "—")}</span>
       </div>
     </div>
@@ -806,7 +809,7 @@ function renderAdminTopicsTable(main, committee, topics, totalMembers) {
     tr.innerHTML = `
       <td></td>
       <td>${i + 1}</td>
-      <td>${esc(t.researcherName || "—")}${t.category ? `<div class="text-sm muted">${esc(t.category)}</div>` : ""}<div class="text-sm muted">الرقم الوظيفي: ${esc(t.fileNumber || "—")}</div></td>
+      <td>${esc(t.researcherName || "—")}${normalizeCategory(t.category) ? `<div class="text-sm muted">${esc(normalizeCategory(t.category))}</div>` : ""}<div class="text-sm muted">الرقم الوظيفي: ${esc(t.fileNumber || "—")}</div></td>
       <td>${esc(t.entity || "—")}</td>
       <td>${total} / ${totalMembers}&nbsp; <button class="btn btn-sm btn-ghost" data-votes="${t.id}">عرض</button></td>
       <td>${finalOpt ? `<span class="pill ${finalOpt.pill}">${esc(finalOpt.label)}</span>` : '<span class="pill pill-pending">قيد التصويت</span>'}${tie ? ' <span class="text-sm">(تعادل)</span>' : ""}</td>
@@ -952,8 +955,8 @@ function openTopicModal(committee, topic, orderIndex) {
       <div class="form-grid">
         <div class="field full"><label>اسم الباحث</label><input type="text" id="fName" value="${esc(t.researcherName || "")}" /></div>
         <div class="field full"><label>فئة الموضوع</label><select id="fCategory">
-          <option value="" ${!t.category ? "selected" : ""}>— اختر الفئة —</option>
-          ${TOPIC_CATEGORIES.map((c) => `<option value="${esc(c)}" ${t.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
+          <option value="" ${!normalizeCategory(t.category) ? "selected" : ""}>— اختر الفئة —</option>
+          ${TOPIC_CATEGORIES.map((c) => `<option value="${esc(c)}" ${normalizeCategory(t.category) === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
         </select></div>
         <div class="field"><label>الرقم الوظيفي</label><input type="text" id="fFile" value="${esc(t.fileNumber || "")}" /></div>
         <div class="field"><label>اسم المشرف</label><input type="text" id="fSupervisor" value="${esc(t.supervisorName || "")}" /></div>
@@ -1375,7 +1378,7 @@ async function renderAdminStats(main) {
 
   function drawCategoriesChart(topics) {
     const cats = [...TOPIC_CATEGORIES, "غير مصنّف"];
-    const counts = cats.map((c) => topics.filter((t) => (t.category || "غير مصنّف") === c).length);
+    const counts = cats.map((c) => topics.filter((t) => (normalizeCategory(t.category) || "غير مصنّف") === c).length);
     renderChart("chartCategories", {
       type: "bar",
       data: { labels: cats, datasets: [{ label: "عدد المواضيع", data: counts, backgroundColor: CHART_PALETTE[0], borderRadius: 4 }] },
