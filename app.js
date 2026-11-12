@@ -51,6 +51,51 @@ const TOPIC_CATEGORIES = [
 // Topics saved before the rename still carry the old name; read them under the new one.
 const LEGACY_CATEGORY_NAMES = { "تجديد عقد": "تجديد عقد باحث", "تعاقد جديد كباحث": "تعاقد باحث" };
 const normalizeCategory = (c) => LEGACY_CATEGORY_NAMES[c] || c || "";
+
+// ---- Age status (regular-age rule for contracted researchers) ----
+// Rule: regular limit is 60 (Gregorian). Bachelor/Master holders may go up to 63 under the
+// committee's delegated authority and are treated as "within regular age" (amber).
+// Every other case above 60 defaults to "exceeds" (red); the admin can override both the
+// status and the color per topic (the 65/70 limits depend on rank and years of service,
+// which are not recorded, so they are decided manually).
+const REGULAR_AGE_LIMIT = 60;
+const EXTENDED_AGE_LIMIT_BACHELOR_MASTER = 63;
+const AGE_STATUS_LABELS = { within: "ضمن السن النظامي", over: "متجاوز السن النظامي" };
+const AGE_COLORS = { green: "أخضر", amber: "كهرماني", red: "أحمر" };
+
+function qualificationLevel(q) {
+  const v = String(q || "").toLowerCase();
+  if (v.includes("دكتوراه") || v.includes("دكتوراة") || v.includes("phd") || v.includes("doctor")) return "doctorate";
+  if (v.includes("ماجستير") || v.includes("master")) return "master";
+  if (v.includes("بكالوريوس") || v.includes("بكالريوس") || v.includes("bachelor")) return "bachelor";
+  return "";
+}
+
+// info: { age, qualification, ageStatusOverride, ageColorOverride }
+function computeAgeStatus(info) {
+  const n = Number(info.age);
+  const hasAge = info.age !== null && info.age !== undefined && info.age !== "" && n > 0;
+  const level = qualificationLevel(info.qualification);
+  let status = null;
+  if (hasAge) {
+    if (n <= REGULAR_AGE_LIMIT) status = "within";
+    else if ((level === "bachelor" || level === "master") && n <= EXTENDED_AGE_LIMIT_BACHELOR_MASTER) status = "within";
+    else status = "over";
+  }
+  const statusOverridden = info.ageStatusOverride === "within" || info.ageStatusOverride === "over";
+  if (statusOverridden) status = info.ageStatusOverride;
+  if (!status) return null;
+  let color = status === "over" ? "red" : (hasAge && n > REGULAR_AGE_LIMIT ? "amber" : "green");
+  const colorOverridden = !!AGE_COLORS[info.ageColorOverride];
+  if (colorOverridden) color = info.ageColorOverride;
+  return { status, color, manual: statusOverridden || colorOverridden };
+}
+
+function ageStatusHTML(info) {
+  const r = computeAgeStatus(info || {});
+  if (!r) return "";
+  return `<span class="age-badge age-${r.color}"${r.manual ? ' title="حدّده المسؤول يدويًا"' : ""}>${AGE_STATUS_LABELS[r.status]}</span>`;
+}
 const QUALIFICATIONS = ["بكالوريوس", "ماجستير", "دكتوراه"];
 
 function gregorianToHijriParts(dateObj) {
@@ -507,7 +552,7 @@ function renderMemberDossier(committee, topic, indexNum) {
       <div class="dossier-field"><div class="k">تاريخ نهاية العقد</div><div class="v">${fmtDateBoth(topic.contractEndDate)}</div></div>
       <div class="dossier-field"><div class="k">المؤهل</div><div class="v">${esc(topic.qualification || "—")}</div></div>
       <div class="dossier-field"><div class="k">التخصص</div><div class="v">${esc(topic.specialization || "—")}</div></div>
-      <div class="dossier-field"><div class="k">السن</div><div class="v">${esc(topic.age ?? "—")}</div></div>
+      <div class="dossier-field"><div class="k">السن</div><div class="v">${esc(topic.age ?? "—")} ${ageStatusHTML(topic)}</div></div>
       <div class="dossier-field"><div class="k">اسم المشرف</div><div class="v">${esc(topic.supervisorName || "—")}</div></div>
       <div class="dossier-field full"><div class="k">نبذة عن طبيعة العمل والمهام المسندة إليه</div><div class="v">${esc(topic.jobDescription || "—")}</div></div>
       <div class="dossier-field"><div class="k">قرار اللجنة السابق حياله</div><div class="v muted">${esc(topic.previousDecision || "لا يوجد")}</div></div>
@@ -814,7 +859,7 @@ function renderAdminTopicsTable(main, committee, topics, totalMembers) {
     tr.innerHTML = `
       <td></td>
       <td>${i + 1}</td>
-      <td>${esc(t.researcherName || "—")}${normalizeCategory(t.category) ? `<div class="text-sm muted">${esc(normalizeCategory(t.category))}</div>` : ""}<div class="text-sm muted">الرقم الوظيفي: ${esc(t.fileNumber || "—")}</div></td>
+      <td>${esc(t.researcherName || "—")}${normalizeCategory(t.category) ? `<div class="text-sm muted">${esc(normalizeCategory(t.category))}</div>` : ""}<div class="text-sm muted">الرقم الوظيفي: ${esc(t.fileNumber || "—")}</div>${t.age != null ? `<div class="text-sm muted" style="margin-top:2px;">السن: ${esc(t.age)} ${ageStatusHTML(t)}</div>` : ""}</td>
       <td>${esc(t.entity || "—")}</td>
       <td>${total} / ${totalMembers}&nbsp; <button class="btn btn-sm btn-ghost" data-votes="${t.id}">عرض</button></td>
       <td>${finalOpt ? `<span class="pill ${finalOpt.pill}">${esc(finalOpt.label)}</span>` : '<span class="pill pill-pending">قيد التصويت</span>'}${tie ? ' <span class="text-sm">(تعادل)</span>' : ""}</td>
@@ -968,9 +1013,22 @@ function openTopicModal(committee, topic, orderIndex) {
         <div class="field"><label>المؤهل</label><select id="fQualification">
           <option value="" ${!t.qualification ? "selected" : ""}>— اختر —</option>
           ${QUALIFICATIONS.map((q) => `<option value="${esc(q)}" ${t.qualification === q ? "selected" : ""}>${esc(q)}</option>`).join("")}
+          ${t.qualification && !QUALIFICATIONS.includes(t.qualification) ? `<option value="${esc(t.qualification)}" selected>${esc(t.qualification)}</option>` : ""}
         </select></div>
         <div class="field"><label>التخصص</label><input type="text" id="fSpecialization" value="${esc(t.specialization || "")}" /></div>
         <div class="field"><label>السن</label><input type="number" min="0" id="fAge" value="${t.age ?? ""}" /></div>
+        <div class="field"><label>حالة السن</label><select id="fAgeStatus">
+          <option value="" ${!t.ageStatusOverride ? "selected" : ""}>تلقائي حسب القاعدة</option>
+          <option value="within" ${t.ageStatusOverride === "within" ? "selected" : ""}>ضمن السن النظامي</option>
+          <option value="over" ${t.ageStatusOverride === "over" ? "selected" : ""}>متجاوز السن النظامي</option>
+        </select></div>
+        <div class="field"><label>لون الوسم</label><select id="fAgeColor">
+          <option value="" ${!t.ageColorOverride ? "selected" : ""}>تلقائي</option>
+          <option value="green" ${t.ageColorOverride === "green" ? "selected" : ""}>أخضر</option>
+          <option value="amber" ${t.ageColorOverride === "amber" ? "selected" : ""}>كهرماني</option>
+          <option value="red" ${t.ageColorOverride === "red" ? "selected" : ""}>أحمر</option>
+        </select></div>
+        <div class="field"><label>معاينة</label><div id="ageStatusHint" style="min-height:40px; display:flex; align-items:center;">${ageStatusHTML(t) || '<span class="text-sm muted">—</span>'}</div></div>
         <div class="field full">
           <label>تاريخ نهاية العقد</label>
           <div class="calendar-toggle">
@@ -1024,6 +1082,8 @@ function openTopicModal(committee, topic, orderIndex) {
               qualification: $("#fQualification").value.trim(),
               specialization: $("#fSpecialization").value.trim(),
               age: $("#fAge").value === "" ? null : Number($("#fAge").value),
+              ageStatusOverride: $("#fAgeStatus").value,
+              ageColorOverride: $("#fAgeColor").value,
               contractEndDate,
               entity: $("#fEntity").value.trim(),
               jobDescription: $("#fDesc").value.trim(),
@@ -1078,6 +1138,18 @@ function openTopicModal(committee, topic, orderIndex) {
         hijriWrap.classList.remove("hidden");
         gregWrap.classList.add("hidden");
       }
+
+      // live age status while typing
+      function refreshAgePreview() {
+        $("#ageStatusHint").innerHTML = ageStatusHTML({
+          age: $("#fAge").value, qualification: $("#fQualification").value,
+          ageStatusOverride: $("#fAgeStatus").value, ageColorOverride: $("#fAgeColor").value,
+        }) || '<span class="text-sm muted">—</span>';
+      }
+      ["fAge", "fQualification", "fAgeStatus", "fAgeColor"].forEach((id) => {
+        $("#" + id).addEventListener("input", refreshAgePreview);
+        $("#" + id).addEventListener("change", refreshAgePreview);
+      });
 
       // attachments: links to OneDrive files
       const listBox = $("#attachmentsList");

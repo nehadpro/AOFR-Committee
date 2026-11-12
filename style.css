@@ -305,6 +305,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .pill-reject { background: var(--danger-tint); color: var(--danger); }
 .pill-extend { background: var(--amber-tint); color: var(--amber); }
 .pill-extend-align { background: var(--brass-tint); color: var(--brass); }
+/* regular-age status next to the researcher's age */
+.age-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-inline-start: 6px; white-space: nowrap; vertical-align: middle; }
+.age-green { background: var(--brand-tint); color: var(--brand-dark); }
+.age-amber { background: var(--amber-tint); color: var(--amber); }
+.age-red { background: var(--danger-tint); color: var(--danger); }
 .pill-other { background: var(--border); color: var(--ink-soft); }
 .pill-pending { background: transparent; color: var(--ink-soft); border: 1px dashed var(--border-strong); }
 
