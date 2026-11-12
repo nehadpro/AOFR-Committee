@@ -35,6 +35,9 @@
   --teal: #1f6b72;
   --teal-tint: #e0f0f1;
 
+  --plum: #7a3b69;
+  --plum-tint: #f1e4ee;
+
   --radius-sm: 3px;
   --radius-md: 6px;
 
@@ -64,6 +67,8 @@
     --amber-tint: #2c2416;
     --teal: #6fc0c7;
     --teal-tint: #17302f;
+    --plum: #d79ac6;
+    --plum-tint: #2e1a2a;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
@@ -86,6 +91,8 @@
   --amber-tint: #2c2416;
   --teal: #6fc0c7;
   --teal-tint: #17302f;
+  --plum: #d79ac6;
+  --plum-tint: #2e1a2a;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
@@ -303,6 +310,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .pill-approve { background: var(--brand-tint); color: var(--brand-dark); }
 .pill-approve-policy { background: var(--teal-tint); color: var(--teal); }
 .pill-reject { background: var(--danger-tint); color: var(--danger); }
+.pill-reject-age { background: var(--plum-tint); color: var(--plum); }
 .pill-extend { background: var(--amber-tint); color: var(--amber); }
 .pill-extend-align { background: var(--brass-tint); color: var(--brass); }
 /* regular-age status next to the researcher's age */
